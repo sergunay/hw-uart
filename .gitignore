@@ -1,0 +1,52 @@
+# ModelSim
+[_@]*
+*.asm64
+*.rw64
+*.mti
+*.dat
+*.dbs
+*.psm
+*.bak
+*.cmp
+*.jpg
+*.html
+*.bsf
+wlf*
+*.wlf
+*.vstf
+*.ucdb
+tcl_stacktrace.txt
+cov*/
+transcript*
+sc_dpiheader.h
+vsim.dbg
+*.csd
+MSIM/IN/
+MSIM/OUT/
+#-------------------------------------------------------------------------------
+# Vivado 
+VIVADO/PRE_SYNTH
+VIVADO/SYNTH
+VIVADO/IMPL
+VIVADO/WORK/*
+!*.wcfg
+#-------------------------------------------------------------------------------
+# Doxygen
+DOC/DOX_HDL/html/
+DOC/DOX_HDL/latex/
+#-------------------------------------------------------------------------------
+# Python
+PYTHON/IN/
+PYTHON/OUT/
+__pycache__
+#-------------------------------------------------------------------------------
+# GHDL
+*.o
+*.cf
+*.ghw
+GHDL/sim/
+GHDL/IN/
+#-------------------------------------------------------------------------------
+# Others
+*.swp
+*.xlsx
