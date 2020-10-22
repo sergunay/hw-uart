@@ -35,10 +35,10 @@ architecture tb of uart_tx_tb is
 
 	-- Simulation constants
 	constant C_CLK_PER    : time    := 83.33 ns;
-	constant C_BAUD       : natural := 8;
+	constant C_BAUD       : natural := 9600;
 	constant C_DATA_NBITS : natural := 8;
-	constant C_PARITY     : natural := 8;
-	constant C_STOP_NBITS : natural := 8;
+	constant C_PARITY     : natural := 0;
+	constant C_STOP_NBITS : natural := 1;
 
 	-- Simulation control signals
 	signal sim_clk  : std_logic := '0';
