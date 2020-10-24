@@ -27,10 +27,10 @@ endif
 	mkdir -p sim
 	$(GHDL_CMD) -a $(GHDL_FLAGS) --workdir=sim --work=work $(TESTBENCHPATH) $(FILES)
 	$(GHDL_CMD) -e  $(GHDL_FLAGS) --workdir=sim --work=work $(TESTBENCH)
-	$(GHDL_CMD) -r  $(GHDL_FLAGS) --workdir=sim --work=work $(TESTBENCH) --vcd=$(SIMDIR)/$(TESTBENCH).vcd
+	$(GHDL_CMD) -r  $(GHDL_FLAGS) --workdir=sim --work=work $(TESTBENCH) --wave=$(SIMDIR)/$(TESTBENCH).ghw
 
 view :
-	$(WAVEFORM_VIEWER) $(SIMDIR)/$(TESTBENCH).vcd
+	$(WAVEFORM_VIEWER) $(SIMDIR)/$(TESTBENCH).ghw
 
 clean :
 	$(GHDL_CMD) --clean --workdir=sim
