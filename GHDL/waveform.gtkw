@@ -1,0 +1,42 @@
+[*]
+[*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
+[*] Mon Oct 26 21:23:41 2020
+[*]
+[dumpfile] "/home/serg/ws/eda/uart/GHDL/sim/uart_tx_tb.ghw"
+[dumpfile_mtime] "Mon Oct 26 21:20:57 2020"
+[dumpfile_size] 433711
+[savefile] "/home/serg/ws/eda/uart/GHDL/waveform.gtkw"
+[timestart] 0
+[size] 1000 600
+[pos] -1 -1
+*0.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.uart_tx_tb.
+[treeopen] top.uart_tx_tb.duv.
+[sst_width] 233
+[signals_width] 182
+[sst_expanded] 1
+[sst_vpaned_height] 144
+@28
+top.uart_tx_tb.sim_clk
+top.uart_tx_tb.sim_req
+top.uart_tx_tb.sim_rst
+@22
+#{top.uart_tx_tb.sim_data[7:0]} top.uart_tx_tb.sim_data[7] top.uart_tx_tb.sim_data[6] top.uart_tx_tb.sim_data[5] top.uart_tx_tb.sim_data[4] top.uart_tx_tb.sim_data[3] top.uart_tx_tb.sim_data[2] top.uart_tx_tb.sim_data[1] top.uart_tx_tb.sim_data[0]
+@200
+-
+@420
+top.uart_tx_tb.duv.state_reg
+@28
+top.uart_tx_tb.duv.baud_tick
+@22
+#{top.uart_tx_tb.duv.nbits_left_reg[3:0]} top.uart_tx_tb.duv.nbits_left_reg[3] top.uart_tx_tb.duv.nbits_left_reg[2] top.uart_tx_tb.duv.nbits_left_reg[1] top.uart_tx_tb.duv.nbits_left_reg[0]
+#{top.uart_tx_tb.duv.data_in_reg[7:0]} top.uart_tx_tb.duv.data_in_reg[7] top.uart_tx_tb.duv.data_in_reg[6] top.uart_tx_tb.duv.data_in_reg[5] top.uart_tx_tb.duv.data_in_reg[4] top.uart_tx_tb.duv.data_in_reg[3] top.uart_tx_tb.duv.data_in_reg[2] top.uart_tx_tb.duv.data_in_reg[1] top.uart_tx_tb.duv.data_in_reg[0]
+@200
+-
+@28
+top.uart_tx_tb.duv_ack
+@29
+top.uart_tx_tb.duv_tx
+[pattern_trace] 1
+[pattern_trace] 0

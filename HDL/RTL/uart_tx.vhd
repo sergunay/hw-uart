@@ -32,6 +32,11 @@ architecture rtl of uart_tx is
 	signal baud_cnt_limit : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
 	signal baud_cnt       : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
 
+	signal data_in_next    : std_logic_vector(DATA_NBITS - 1 downto 0);
+	signal data_in_reg     : std_logic_vector(DATA_NBITS - 1 downto 0);
+	signal nbits_left_next : unsigned(4 - 1 downto 0);
+	signal nbits_left_reg  : unsigned(4 - 1 downto 0);
+
 	signal baud_tick      : std_logic;
 
 	signal tx_next        : std_logic;
@@ -41,10 +46,12 @@ architecture rtl of uart_tx is
 	signal start_reg      : std_logic;
 
 	signal req            : std_logic;
+	signal ack            : std_logic;
+
 
 	type fsm_states is(
 		ST_START,
-		ST_SHIFT_DATA,
+		ST_TX_DATA,
 		ST_PARITY,
 		ST_STOP,
 		ST_EXTRA_HALF_STOP,
@@ -84,7 +91,7 @@ begin
 		end if;
 	end process START_PROC;
 
-	IN_REQ_PROC: process(iClk)
+	REQ_REG_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
 			if iRst = '1'then
@@ -93,7 +100,29 @@ begin
 				req <= iReq;
 			end if;
 		end if;
-	end process IN_REQ_PROC;
+	end process REQ_REG_PROC;
+
+	DATA_IN_REG_PROC: process(iClk)
+	begin
+		if rising_edge(iClk) then
+			if iRst = '1'then
+				data_in_reg <= (others=>'0');
+			else
+				data_in_reg <= data_in_next;
+			end if;
+		end if;
+	end process DATA_IN_REG_PROC;
+
+	NBITS_LEFT_PROC: process(iClk)
+	begin
+		if rising_edge(iClk) then
+			if iRst = '1'then
+				nbits_left_reg <= to_unsigned(DATA_NBITS - 1, 4);
+			else
+				nbits_left_reg <= nbits_left_next;
+			end if;
+		end if;
+	end process NBITS_LEFT_PROC;
 
 
 ----------------------------------------------------------------------------
@@ -109,33 +138,51 @@ begin
 		end if;
 	end process FSM_STATE_REG;
 
-	FSM_NSL: process(state_reg, baud_tick)
+	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req, start_reg)
 	begin
-		state_next 			<= state_reg;
+		state_next 	    <= state_reg;
+		tx_next         <= tx_reg;
+		start_next      <= start_reg;
+		data_in_next    <= data_in_reg;
+		nbits_left_next <= nbits_left_reg;
+		ack             <= '0';
 
 		case state_reg is
 
 			when ST_START		=>
 
 				if baud_tick = '1' and req = '1' then
-					start_next <= '1';
-					tx_next    <= '0';
+					start_next   <= '1';
+					tx_next      <= '0';
+					data_in_next <= iData;
 				end if;
 
 				if baud_tick = '1' and start_reg = '1' then
-					state_next 	<= ST_SHIFT_DATA;
+					start_next   <= '0';
+					state_next 	 <= ST_TX_DATA;
+					ack          <= '1';
 
 				end if;
 
 			---------------------------------------------------
 
-			when ST_SHIFT_DATA	=>
+			when ST_TX_DATA	=>
+
+				tx_next         <= data_in_reg(0);
 
 				if baud_tick = '1' then
-					if parity = 1 then
-						state_next	<= ST_PARITY;
-					else
-						state_next	<= ST_STOP;
+
+					data_in_next    <= '0' & data_in_reg(DATA_NBITS-1 downto 1);
+					nbits_left_next <= nbits_left_reg - 1;
+
+					if nbits_left_reg = 0 then
+
+						nbits_left_next <= to_unsigned(DATA_NBITS, 4);
+						if parity = 1 then
+							state_next	<= ST_PARITY;
+						else
+							state_next	<= ST_STOP;
+						end if;
 					end if;
 				end if;
 
@@ -148,6 +195,8 @@ begin
 
 			---------------------------------------------------
 			when ST_STOP		=>
+
+				tx_next         <= '1';
 
 				if baud_tick = '1' then
 					state_next 	<= ST_START;
@@ -167,9 +216,6 @@ begin
 					state_next 	<= ST_START;
 				end if;
 
-
-
-
 		end case;
 
 	end process FSM_NSL;
@@ -180,7 +226,7 @@ begin
 	begin
 		if rising_edge(iClk) then
 			if iRst = '1'then
-				tx_reg <= '0';
+				tx_reg <= '1';
 			else
 				tx_reg <= tx_next;
 			end if;
@@ -188,6 +234,7 @@ begin
 	end process TX_REG_PROC;
 
 	oTx  <= tx_reg;
+	oAck <= ack;
 
 
 --------------------------------------------------------------------------------
