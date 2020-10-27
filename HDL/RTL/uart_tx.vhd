@@ -1,8 +1,8 @@
 --! @file       uart_tx.vhd
 --! @brief      UART transmitter FSM
---! @details    Generates UART TX signaling when a data (iData) is provided 
+--! @details    Generates UART TX signaling when a data (iData) is provided
 --!             with a request signal (iReq). When the transmission is started,
---!             an acknowledgement (oAck) signal is generated. The next data 
+--!             an acknowledgement (oAck) signal is generated. The next data
 --!             then can be supplied after this ack signal.
 --! @author     Selman Ergunay
 --! @date       2020-10-20
@@ -20,18 +20,20 @@ use ieee.numeric_std.all;
 
 ----------------------------------------------------------------------------
 entity uart_tx is
-	generic(
-		BAUD       : positive := 9600; --! Baud rate in [9600, 19200, 115200]
-		DATA_NBITS : positive := 7;    --! Number of data bits
-		PARITY     : natural  := 0;    --! 0: no parity, 1: odd, 2: even
-		STOP_NBITS : positive := 1);   --! 1: 1, 2: 2, 3: 1.5
 	port(
-		iClk  : in std_logic;  --! System clock, 12 MHz
-		iRst  : in std_logic;  --! System reset
-		iReq  : in std_logic;  --! Tx request
-		iData : in std_logic_vector(DATA_NBITS-1 downto 0);
-		oAck  : out std_logic;
-		oTx   : out std_logic);
+		iClk       : in std_logic;  --! System clock, 12 MHz
+		iRst       : in std_logic;  --! System reset
+		-- Control pins
+		iBaud      : in std_logic_vector(2 downto 0);
+		iParity_en : in std_logic;
+		iParity    : in std_logic;  --! 0: even, 1:odd
+		iWord_len  : in std_logic_vector(1 downto 0);
+		iStop_len  : in std_logic_vector(1 downto 0);
+
+		iReq       : in std_logic;  --! Tx request
+		iData      : in std_logic_vector(7 downto 0);
+		oAck       : out std_logic;
+		oTx        : out std_logic);
 end entity uart_tx;
 
 ----------------------------------------------------------------------------
@@ -39,13 +41,15 @@ architecture rtl of uart_tx is
 
 	constant C_BAUD_CNT_NBITS : integer := 12;
 
-	signal baud_cnt_limit : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
-	signal baud_cnt       : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
+	signal baud_cnt_limit  : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
+	signal baud_cnt        : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
 
-	signal data_in_next    : std_logic_vector(DATA_NBITS - 1 downto 0);
-	signal data_in_reg     : std_logic_vector(DATA_NBITS - 1 downto 0);
-	signal nbits_left_next : unsigned(4 - 1 downto 0);
-	signal nbits_left_reg  : unsigned(4 - 1 downto 0);
+	signal word_nbits      : unsigned(3 downto 0);
+
+	signal data_in_next    : std_logic_vector(7 downto 0);
+	signal data_in_reg     : std_logic_vector(7 downto 0);
+	signal nbits_left_next : unsigned(3 downto 0);
+	signal nbits_left_reg  : unsigned(3 downto 0);
 
 	signal baud_tick      : std_logic; --! Baud ticks at desired baud rate
 
@@ -54,6 +58,9 @@ architecture rtl of uart_tx is
 
 	signal start_next     : std_logic;
 	signal start_reg      : std_logic;
+
+	signal parity_next    : std_logic;
+	signal parity_reg     : std_logic;
 
 	signal req            : std_logic;
 	signal ack            : std_logic;
@@ -70,10 +77,23 @@ architecture rtl of uart_tx is
 
 begin
 
-	baud_cnt_limit <= to_unsigned(1250, C_BAUD_CNT_NBITS) when BAUD = 9600   else
-					  to_unsigned( 625, C_BAUD_CNT_NBITS) when BAUD = 19200  else
-					  to_unsigned( 104, C_BAUD_CNT_NBITS) when BAUD = 115200 else
-					  to_unsigned(   0, C_BAUD_CNT_NBITS);
+	-- BAUD       : "000"=>1200, "001"=>2400, "010"=>4800, "011"=>9600
+	--              "100"=>19200, "101"=>38400,"110"=>57600, "111"=>115200
+	baud_cnt_limit <= to_unsigned(10000, C_BAUD_CNT_NBITS) when iBaud = "000" else
+					  to_unsigned( 5000, C_BAUD_CNT_NBITS) when iBaud = "001" else
+					  to_unsigned( 2500, C_BAUD_CNT_NBITS) when iBaud = "010" else
+					  to_unsigned( 1250, C_BAUD_CNT_NBITS) when iBaud = "011" else
+					  to_unsigned(  625, C_BAUD_CNT_NBITS) when iBaud = "100" else
+					  to_unsigned(  312, C_BAUD_CNT_NBITS) when iBaud = "101" else
+					  to_unsigned(  208, C_BAUD_CNT_NBITS) when iBaud = "110" else
+					  to_unsigned(  104, C_BAUD_CNT_NBITS) when iBaud = "111";
+
+	-- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
+	word_nbits <= to_unsigned(5, 4) when iWord_len = "00" else
+			      to_unsigned(6, 4) when iWord_len = "01" else
+				  to_unsigned(7, 4) when iWord_len = "10" else
+				  to_unsigned(8, 4) when iWord_len = "11";
+
 
 	BAUD_CNT_PROC: process(iClk)
 	begin
@@ -113,7 +133,7 @@ begin
 		end if;
 	end process REQ_REG_PROC;
 
-			
+
 	DATA_IN_REG_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
@@ -129,12 +149,24 @@ begin
 	begin
 		if rising_edge(iClk) then
 			if iRst = '1'then
-				nbits_left_reg <= to_unsigned(DATA_NBITS - 1, 4);
+				nbits_left_reg <= word_nbits;
 			else
 				nbits_left_reg <= nbits_left_next;
 			end if;
 		end if;
 	end process NBITS_LEFT_PROC;
+
+	PARITY_REG_PROC: process(iClk)
+	begin
+		if rising_edge(iClk) then
+			if iRst = '1'then
+				parity_reg <= '0';
+			else
+				parity_reg <= parity_next;
+			end if;
+		end if;
+	end process PARITY_REG_PROC;
+
 
 
 ----------------------------------------------------------------------------
@@ -151,7 +183,7 @@ begin
 		end if;
 	end process FSM_STATE_REG;
 
-	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req, start_reg)
+	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req, start_reg, parity_reg)
 	begin
 		state_next 	    <= state_reg;
 		tx_next         <= tx_reg;
@@ -159,6 +191,7 @@ begin
 		data_in_next    <= data_in_reg;
 		nbits_left_next <= nbits_left_reg;
 		ack             <= '0';
+		parity_next     <= parity_reg;
 
 		case state_reg is
 
@@ -185,13 +218,15 @@ begin
 
 				if baud_tick = '1' then
 
-					data_in_next    <= '0' & data_in_reg(DATA_NBITS-1 downto 1);
+					parity_next     <= parity_reg xor data_in_reg(0);
+
+					data_in_next    <= '0' & data_in_reg(7 downto 1);
 					nbits_left_next <= nbits_left_reg - 1;
 
 					if nbits_left_reg = 0 then
 
-						nbits_left_next <= to_unsigned(DATA_NBITS, 4);
-						if parity = 1 then
+						nbits_left_next <= word_nbits;
+						if iParity_en = '1' then
 							state_next	<= ST_PARITY;
 						else
 							state_next	<= ST_STOP;
@@ -200,9 +235,12 @@ begin
 				end if;
 
 			---------------------------------------------------
-			when ST_PARITY		=>
+			when ST_PARITY =>
+
+				tx_next     <= iParity xor parity_reg;
 
 				if baud_tick = '1' then
+					parity_next <= '0';
 					state_next 	<= ST_STOP;
 				end if;
 
