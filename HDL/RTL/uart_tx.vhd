@@ -1,8 +1,18 @@
---! @file 			uart_tx.vhd
---! @brief 			a short description what can be found in the file
---! @details 		detailed description
---! @author 		Selman Ergünay
---! @date 			21.10.2020
+--! @file       uart_tx.vhd
+--! @brief      UART transmitter FSM
+--! @details    Generates UART TX signaling when a data (iData) is provided 
+--!             with a request signal (iReq). When the transmission is started,
+--!             an acknowledgement (oAck) signal is generated. The next data 
+--!             then can be supplied after this ack signal.
+--! @author     Selman Ergunay
+--! @date       2020-10-20
+
+-- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
+-- STOP_NBITS : "00"=>1, "01"=>1, "10"=>2, "11"=>1.5
+-- PARITY     : "0X"=>No parity,  "10"=>Even parity, "11"=>Odd parity
+-- BAUD       : "000"=>1200, "001"=>2400, "010"=>4800, "011"=>9600
+--              "100"=>19200, "101"=>38400,"110"=>57600, "111"=>115200
+
 ----------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -11,14 +21,14 @@ use ieee.numeric_std.all;
 ----------------------------------------------------------------------------
 entity uart_tx is
 	generic(
-		BAUD       : positive := 9600;
-		DATA_NBITS : positive := 7;
-		PARITY     : natural  := 0;  --! 0: no parity, 1: odd, 2: even
-		STOP_NBITS : positive := 1); --! 1: 1, 2: 2, 3: 1.5
+		BAUD       : positive := 9600; --! Baud rate in [9600, 19200, 115200]
+		DATA_NBITS : positive := 7;    --! Number of data bits
+		PARITY     : natural  := 0;    --! 0: no parity, 1: odd, 2: even
+		STOP_NBITS : positive := 1);   --! 1: 1, 2: 2, 3: 1.5
 	port(
-		iClk  : in std_logic;
-		iRst  : in std_logic;
-		iReq  : in std_logic;
+		iClk  : in std_logic;  --! System clock, 12 MHz
+		iRst  : in std_logic;  --! System reset
+		iReq  : in std_logic;  --! Tx request
 		iData : in std_logic_vector(DATA_NBITS-1 downto 0);
 		oAck  : out std_logic;
 		oTx   : out std_logic);
@@ -37,7 +47,7 @@ architecture rtl of uart_tx is
 	signal nbits_left_next : unsigned(4 - 1 downto 0);
 	signal nbits_left_reg  : unsigned(4 - 1 downto 0);
 
-	signal baud_tick      : std_logic;
+	signal baud_tick      : std_logic; --! Baud ticks at desired baud rate
 
 	signal tx_next        : std_logic;
 	signal tx_reg         : std_logic;
@@ -47,7 +57,6 @@ architecture rtl of uart_tx is
 
 	signal req            : std_logic;
 	signal ack            : std_logic;
-
 
 	type fsm_states is(
 		ST_START,
@@ -77,6 +86,7 @@ begin
 		end if;
 	end process BAUD_CNT_PROC;
 
+	-- Generate baud tick
 	baud_tick <= '1' when baud_cnt = baud_cnt_limit-1 else
 				 '0';
 
@@ -91,6 +101,7 @@ begin
 		end if;
 	end process START_PROC;
 
+	--! Request input register process
 	REQ_REG_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
@@ -102,6 +113,7 @@ begin
 		end if;
 	end process REQ_REG_PROC;
 
+			
 	DATA_IN_REG_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
@@ -127,6 +139,7 @@ begin
 
 ----------------------------------------------------------------------------
 
+	--! FSM state register
 	FSM_STATE_REG : process(iClk)
 	begin
 		if rising_edge(iClk) then
