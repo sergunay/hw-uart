@@ -10,6 +10,7 @@ use ieee.numeric_std.all;
 
 library std;
 use std.textio.all;
+use ieee.std_logic_textio.all;
 
 ----------------------------------------------------------------------------
 entity uart_tx_tb is
@@ -26,7 +27,7 @@ architecture tb of uart_tx_tb is
 			iParity_en : in std_logic;
 			iParity    : in std_logic;  --! 0: even, 1:odd
 			iWord_len  : in std_logic_vector(1 downto 0);
-			iStop_len  : in std_logic_vector(1 downto 0);
+			iStop_len  : in std_logic;
 			iReq       : in std_logic;
 			iData      : in std_logic_vector(7 downto 0);
 			oAck       : out std_logic;
@@ -34,7 +35,8 @@ architecture tb of uart_tx_tb is
 	end component;
 
 	-- Simulation constants
-	constant C_CLK_PER    : time    := 83.33 ns;
+	constant C_CLK_PER   : time    := 83.33 ns;
+	constant C_BAUD_PER  : time    := 104 us;
 
 	-- Simulation control signals
 	signal sim_clk       : std_logic := '0';
@@ -43,15 +45,31 @@ architecture tb of uart_tx_tb is
 	signal sim_baud      : std_logic_vector(2 downto 0) := "011";
 	signal sim_parity    : std_logic := '0';
 	signal sim_parity_en : std_logic := '1';
-	signal sim_word_len  : std_logic_vector(1 downto 0) := "10";
-	signal sim_stop_len  : std_logic_vector(1 downto 0) := "00";
+	signal sim_word_len  : std_logic_vector(1 downto 0) := "11";
+	signal sim_stop_len  : std_logic := '0';
 
-	signal sim_req  : std_logic := '0';
-	signal sim_data : std_logic_vector(7 downto 0) := (others=>'0');
+	signal sim_req       : std_logic := '0';
+	signal sim_data      : std_logic_vector(7 downto 0) := (others=>'0');
+	signal rx_word       : std_logic_vector(7 downto 0) := (others=>'0');
 
-	signal duv_ack : std_logic := '0';
-	signal duv_tx  : std_logic := '0';
+	signal duv_ack       : std_logic := '0';
+	signal duv_tx        : std_logic := '0';
 
+	signal start_detect  : std_logic := '0';
+
+	-- File/file name definitions
+	constant C_TV_FILE_NAME : string := "./IN/tv_in.txt";
+	file TV_FILE            : text;
+
+	function sl_to_int(sl : std_logic)
+	return integer is
+    begin
+		if sl = '1' then
+			return 1;
+		else
+			return 0;
+		end if;
+    end function;
 
 begin
 ----------------------------------------------------------------------------
@@ -82,6 +100,13 @@ begin
 
 	STIM_PROC: process
 
+		variable tv_line	: line;
+		variable tv_data    : std_logic_vector(7 downto 0) := (others=>'0');
+		variable tv_control : std_logic_vector(7 downto 0) := (others=>'0');
+		variable parity     : std_logic := '0';
+		variable wordlen    : natural := 8;
+        variable l : line;
+
 		procedure init is
 		begin
 			sim_rst 			<= '1';
@@ -89,24 +114,80 @@ begin
 			sim_rst				<= '0';
 		end procedure init;
 
-		procedure uart_write(
-			constant uart_tx_data : std_logic_vector(7 downto 0)) is
+		procedure load(
+			constant data    : std_logic_vector(7 downto 0);
+			constant control : std_logic_vector(7 downto 0)) is
 		begin
-			sim_data  <= uart_tx_data(7 downto 0);
+			sim_data(7 downto 0)     <= data(7 downto 0);
+
+			sim_baud(2 downto 0)     <= control(7 downto 5);
+			sim_parity_en            <= control(4);
+			sim_parity               <= control(3);
+			sim_word_len(1 downto 0) <= control(2 downto 1);
+			sim_stop_len             <= control(0);
 			sim_req   <= '1';
+		end procedure load;
 
-			--wait until falling_edge(duv_ack);
-			wait for 1 ms;
+		procedure check(
+			constant data    : std_logic_vector(7 downto 0);
+			constant control : std_logic_vector(7 downto 0)) is
+		begin
+			wait for C_BAUD_PER/2;
 
-			sim_data   <= (others=>'0');
-			sim_req    <= '0';
-		end procedure uart_write;
+			-- check start bit
+			assert duv_tx = '0'
+			report "START bit missing "
+			severity ERROR;
+
+			-- check data
+			wordlen   := to_integer(unsigned(sim_word_len)) + 5;
+			for bit_idx in 0 to wordlen-1 loop
+				wait for C_BAUD_PER;
+				assert duv_tx = data(bit_idx)
+				report 	"Data Error: Exp = " & integer'image(sl_to_int(data(bit_idx))) & " / " &
+						"Got = " & integer'image(sl_to_int(duv_tx))
+				severity ERROR;
+			end loop;
+
+			-- check parity
+			if sim_parity_en = '1' then
+				parity := sim_parity;
+				for bit_idx in 0 to wordlen-1 loop
+					parity := parity xor data(bit_idx);
+				end loop;
+				wait for C_BAUD_PER;
+				assert duv_tx = parity
+				report 	"Parity Error: Exp = " & integer'image(sl_to_int(parity)) & " / " &
+						"Got = " & integer'image(sl_to_int(duv_tx))
+				severity ERROR;
+			end if;
+
+			-- check stop
+			wait for C_BAUD_PER;
+			assert duv_tx = '1'
+			report "STOP bit is missing."
+			severity ERROR;
+
+			-- check extra stop
+			if sim_stop_len = '1' then
+				wait for C_BAUD_PER;
+				assert duv_tx = '1'
+				report "EXTRA STOP bit is missing."
+				severity ERROR;
+			end if;
+		end procedure check;
 
 	begin
 		init;
-		wait for 500 ns;
-		uart_write("10110000");
-		wait for 1 ms;
+		file_open(TV_FILE, C_TV_FILE_NAME, READ_MODE);
+		while not endfile(TV_FILE) loop
+			readline(TV_FILE, tv_line);
+			read(tv_line, tv_data);
+			read(tv_line, tv_control);
+			load(tv_data, tv_control);
+			check(tv_data, tv_control);
+			wait for C_BAUD_PER;
+		end loop;
 		sim_stop 	<= True;
 		wait;
 	end process STIM_PROC;
