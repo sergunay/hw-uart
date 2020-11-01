@@ -28,7 +28,7 @@ entity uart_tx is
 		iParity_en : in std_logic;
 		iParity    : in std_logic;  --! 0: even, 1:odd
 		iWord_len  : in std_logic_vector(1 downto 0);
-		iStop_len  : in std_logic_vector(1 downto 0);
+		iStop_len  : in std_logic;
 
 		iReq       : in std_logic;  --! Tx request
 		iData      : in std_logic_vector(7 downto 0);
@@ -41,37 +41,37 @@ architecture rtl of uart_tx is
 
 	constant C_BAUD_CNT_NBITS : integer := 12;
 
-	signal baud_cnt_limit  : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
-	signal baud_cnt        : unsigned(C_BAUD_CNT_NBITS-1 downto 0);
+	signal baud_cnt_limit  : unsigned(C_BAUD_CNT_NBITS-1 downto 0) := (others=>'0');
+	signal baud_cnt        : unsigned(C_BAUD_CNT_NBITS-1 downto 0) := (others=>'0');
+	signal baud_en         : std_logic := '0';
 
-	signal word_nbits      : unsigned(3 downto 0);
+	signal word_nbits      : unsigned(3 downto 0) := (others=>'0');
 
-	signal data_in_next    : std_logic_vector(7 downto 0);
-	signal data_in_reg     : std_logic_vector(7 downto 0);
-	signal nbits_left_next : unsigned(3 downto 0);
-	signal nbits_left_reg  : unsigned(3 downto 0);
+	signal data_in_next    : std_logic_vector(7 downto 0) := (others=>'0');
+	signal data_in_reg     : std_logic_vector(7 downto 0) := (others=>'0');
+	signal nbits_left_next : unsigned(3 downto 0) := (others=>'0');
+	signal nbits_left_reg  : unsigned(3 downto 0) := (others=>'0');
 
-	signal baud_tick      : std_logic; --! Baud ticks at desired baud rate
+	signal baud_tick      : std_logic := '0'; --! Baud ticks at desired baud rate
 
-	signal tx_next        : std_logic;
-	signal tx_reg         : std_logic;
+	signal tx_next        : std_logic := '0';
+	signal tx_reg         : std_logic := '0';
 
-	signal start_next     : std_logic;
-	signal start_reg      : std_logic;
+	signal start_next     : std_logic := '0';
+	signal start_reg      : std_logic := '0';
 
-	signal parity_next    : std_logic;
-	signal parity_reg     : std_logic;
+	signal parity_next    : std_logic := '0';
+	signal parity_reg     : std_logic := '0';
 
-	signal req            : std_logic;
-	signal ack            : std_logic;
+	signal req            : std_logic := '0';
+	signal ack            : std_logic := '0';
 
 	type fsm_states is(
 		ST_START,
 		ST_TX_DATA,
 		ST_PARITY,
 		ST_STOP,
-		ST_EXTRA_HALF_STOP,
-	   	ST_EXTRA_FULL_STOP);
+	   	ST_STOP_EXT);
 
 	signal state_next, state_reg 	: fsm_states := ST_START;
 
@@ -89,16 +89,16 @@ begin
 					  to_unsigned(  104, C_BAUD_CNT_NBITS) when iBaud = "111";
 
 	-- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
-	word_nbits <= to_unsigned(5, 4) when iWord_len = "00" else
-			      to_unsigned(6, 4) when iWord_len = "01" else
-				  to_unsigned(7, 4) when iWord_len = "10" else
-				  to_unsigned(8, 4) when iWord_len = "11";
+	word_nbits <= to_unsigned(4, 4) when iWord_len = "00" else
+			      to_unsigned(5, 4) when iWord_len = "01" else
+				  to_unsigned(6, 4) when iWord_len = "10" else
+				  to_unsigned(7, 4) when iWord_len = "11";
 
 
 	BAUD_CNT_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
-			if iRst = '1' or baud_cnt = baud_cnt_limit-1 then
+			if iRst = '1' or baud_cnt = baud_cnt_limit-1 or baud_en = '0' then
 				 baud_cnt <= (others=>'0');
 			else
 				 baud_cnt <= baud_cnt + 1;
@@ -192,22 +192,22 @@ begin
 		nbits_left_next <= nbits_left_reg;
 		ack             <= '0';
 		parity_next     <= parity_reg;
+		baud_en         <= '1';
 
 		case state_reg is
 
 			when ST_START		=>
 
-				if baud_tick = '1' and req = '1' then
-					start_next   <= '1';
+				if req = '1' then
 					tx_next      <= '0';
 					data_in_next <= iData;
+				else
+					baud_en      <= '0';
 				end if;
 
-				if baud_tick = '1' and start_reg = '1' then
-					start_next   <= '0';
+				if baud_tick = '1' then
 					state_next 	 <= ST_TX_DATA;
 					ack          <= '1';
-
 				end if;
 
 			---------------------------------------------------
@@ -245,23 +245,23 @@ begin
 				end if;
 
 			---------------------------------------------------
-			when ST_STOP		=>
+			when ST_STOP  =>
 
 				tx_next         <= '1';
 
 				if baud_tick = '1' then
+					if iStop_len = '0' then
+				  		state_next <= ST_START;
+					else
+				  		state_next <= ST_STOP_EXT;
+					end if;
+
 					state_next 	<= ST_START;
+
 				end if;
 
 			---------------------------------------------------
-			when ST_EXTRA_HALF_STOP		=>
-
-				if baud_tick = '1' then
-					state_next 	<= ST_START;
-				end if;
-
-			---------------------------------------------------
-			when ST_EXTRA_FULL_STOP		=>
+			when ST_STOP_EXT  =>
 
 				if baud_tick = '1' then
 					state_next 	<= ST_START;
