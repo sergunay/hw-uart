@@ -120,7 +120,7 @@ begin
 		begin
 			sim_data(7 downto 0)     <= data(7 downto 0);
 
-			sim_baud(2 downto 0)     <= control(7 downto 5);
+			sim_baud(2 downto 0)     <= "011";
 			sim_parity_en            <= control(4);
 			sim_parity               <= control(3);
 			sim_word_len(1 downto 0) <= control(2 downto 1);

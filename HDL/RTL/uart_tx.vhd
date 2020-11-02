@@ -12,14 +12,10 @@
 --!                          "100"=>19200, "101"=>38400,"110"=>57600, "111"=>115200
 --! @author     Selman Ergunay
 --! @date       2020-10-20
-
-
-
 ----------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-
 ----------------------------------------------------------------------------
 entity uart_tx is
 	port(
@@ -37,7 +33,6 @@ entity uart_tx is
 		oAck       : out std_logic;
 		oTx        : out std_logic);
 end entity uart_tx;
-
 ----------------------------------------------------------------------------
 architecture rtl of uart_tx is
 
@@ -168,7 +163,7 @@ begin
 			end if;
 		end if;
 	end process FSM_STATE_REG;
-			
+
 --! @dot
 --! digraph FSM_UART_TX {
 --!  node [shape=circle];
@@ -184,7 +179,7 @@ begin
 --! @enddot
 
 	--! FSM - Next state logic
-	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req, 
+	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req,
 					 parity_reg, iData, word_nbits, iParity, iStop_len)
 	begin
 		state_next 	    <= state_reg;
@@ -200,10 +195,11 @@ begin
 			when ST_START		=>
 
 				if req = '1' then
-					tx_next      <= '0';
-					data_in_next <= iData;
+					nbits_left_next <= word_nbits;
+					tx_next         <= '0';
+					data_in_next    <= iData;
 				else
-					baud_en      <= '0';
+					baud_en         <= '0';
 				end if;
 
 				if baud_tick = '1' then
@@ -241,7 +237,7 @@ begin
 				tx_next     <= iParity xor parity_reg;
 
 				if baud_tick = '1' then
-					parity_next <= '0';
+					parity_next <= parity_reg;
 					state_next 	<= ST_STOP;
 				end if;
 
@@ -287,7 +283,7 @@ begin
 
 	oTx  <= tx_reg;
 	oAck <= ack;
-			
+
 --------------------------------------------------------------------------------
 end architecture rtl;
 ----------------------------------------------------------------------------
