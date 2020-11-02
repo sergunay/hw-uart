@@ -52,6 +52,8 @@ architecture tb of uart_tx_tb is
 	signal sim_data      : std_logic_vector(7 downto 0) := (others=>'0');
 	signal rx_word       : std_logic_vector(7 downto 0) := (others=>'0');
 
+	signal sim_check     : std_logic := '0';
+
 	signal duv_ack       : std_logic := '0';
 	signal duv_tx        : std_logic := '0';
 
@@ -132,22 +134,31 @@ begin
 			constant data    : std_logic_vector(7 downto 0);
 			constant control : std_logic_vector(7 downto 0)) is
 		begin
+			sim_check <= '0';
 			wait for C_BAUD_PER/2;
 
 			-- check start bit
+			sim_check <= '1';
 			assert duv_tx = '0'
 			report "START bit missing "
 			severity ERROR;
+			wait for 5 ns;
+			sim_check <= '0';
 
 			-- check data
 			wordlen   := to_integer(unsigned(sim_word_len)) + 5;
 			for bit_idx in 0 to wordlen-1 loop
-				wait for C_BAUD_PER;
+				wait for C_BAUD_PER - 5 ns;
+				sim_check <= '1';
 				assert duv_tx = data(bit_idx)
 				report 	"Data Error: Exp = " & integer'image(sl_to_int(data(bit_idx))) & " / " &
 						"Got = " & integer'image(sl_to_int(duv_tx))
 				severity ERROR;
+				wait for 5 ns;
+				sim_check <= '0';
 			end loop;
+
+			sim_req   <= '0';
 
 			-- check parity
 			if sim_parity_en = '1' then
@@ -155,25 +166,33 @@ begin
 				for bit_idx in 0 to wordlen-1 loop
 					parity := parity xor data(bit_idx);
 				end loop;
-				wait for C_BAUD_PER;
+				wait for C_BAUD_PER - 5 ns;
+				sim_check <= '1';
 				assert duv_tx = parity
 				report 	"Parity Error: Exp = " & integer'image(sl_to_int(parity)) & " / " &
 						"Got = " & integer'image(sl_to_int(duv_tx))
 				severity ERROR;
+				wait for 5 ns;
+				sim_check <= '0';
 			end if;
 
 			-- check stop
-			wait for C_BAUD_PER;
+			wait for C_BAUD_PER - 5 ns;
+			sim_check <= '1';
 			assert duv_tx = '1'
 			report "STOP bit is missing."
 			severity ERROR;
+			wait for 5 ns;
+			sim_check <= '0';
 
 			-- check extra stop
 			if sim_stop_len = '1' then
-				wait for C_BAUD_PER;
+				wait for C_BAUD_PER - 5 ns;
+				sim_check <= '1';
 				assert duv_tx = '1'
 				report "EXTRA STOP bit is missing."
 				severity ERROR;
+				sim_check <= '0';
 			end if;
 		end procedure check;
 

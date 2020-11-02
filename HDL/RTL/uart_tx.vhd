@@ -252,13 +252,12 @@ begin
 					else
 				  		state_next <= ST_STOP_EXT;
 					end if;
-
-					state_next 	<= ST_START;
-
 				end if;
 
 			---------------------------------------------------
 			when ST_STOP_EXT  =>
+
+				tx_next         <= '1';
 
 				if baud_tick = '1' then
 					state_next 	<= ST_START;

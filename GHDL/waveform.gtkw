@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
-[*] Sun Nov  1 20:23:09 2020
+[*] Mon Nov  2 20:32:32 2020
 [*]
 [dumpfile] "/home/serg/ws/eda/uart/GHDL/sim/uart_tx_tb.ghw"
-[dumpfile_mtime] "Sun Nov  1 20:22:27 2020"
-[dumpfile_size] 473923
+[dumpfile_mtime] "Mon Nov  2 20:31:40 2020"
+[dumpfile_size] 1250458
 [savefile] "/home/serg/ws/eda/uart/GHDL/waveform.gtkw"
 [timestart] 0
 [size] 1864 1016
@@ -16,7 +16,7 @@
 [sst_width] 233
 [signals_width] 246
 [sst_expanded] 1
-[sst_vpaned_height] 289
+[sst_vpaned_height] 579
 @28
 top.uart_tx_tb.sim_clk
 top.uart_tx_tb.sim_req
@@ -25,7 +25,6 @@ top.uart_tx_tb.sim_rst
 top.uart_tx_tb.sim_parity
 top.uart_tx_tb.sim_parity_en
 top.uart_tx_tb.sim_stop_len
-@29
 #{top.uart_tx_tb.sim_word_len[1:0]} top.uart_tx_tb.sim_word_len[1] top.uart_tx_tb.sim_word_len[0]
 @200
 -
@@ -41,5 +40,7 @@ top.uart_tx_tb.duv.baud_tick
 @28
 top.uart_tx_tb.duv_ack
 top.uart_tx_tb.duv_tx
+@29
+top.uart_tx_tb.sim_check
 [pattern_trace] 1
 [pattern_trace] 0
