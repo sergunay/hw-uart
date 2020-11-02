@@ -198,6 +198,7 @@ begin
 					nbits_left_next <= word_nbits;
 					tx_next         <= '0';
 					data_in_next    <= iData;
+					parity_next     <= iParity;
 				else
 					baud_en         <= '0';
 				end if;
@@ -234,10 +235,9 @@ begin
 			---------------------------------------------------
 			when ST_PARITY =>
 
-				tx_next     <= iParity xor parity_reg;
+				tx_next     <= parity_reg;
 
 				if baud_tick = '1' then
-					parity_next <= parity_reg;
 					state_next 	<= ST_STOP;
 				end if;
 
