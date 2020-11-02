@@ -4,14 +4,16 @@
 --!             with a request signal (iReq). When the transmission is started,
 --!             an acknowledgement (oAck) signal is generated. The next data
 --!             then can be supplied after this ack signal.
+--!             Control bits:
+--!             WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
+--!             STOP_NBITS : "00"=>1, "01"=>1, "10"=>2, "11"=>1.5
+--!             PARITY     : "0X"=>No parity,  "10"=>Even parity, "11"=>Odd parity
+--!             BAUD       : "000"=>1200,  "001"=>2400, "010"=>4800,  "011"=>9600
+--!                          "100"=>19200, "101"=>38400,"110"=>57600, "111"=>115200
 --! @author     Selman Ergunay
 --! @date       2020-10-20
 
--- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
--- STOP_NBITS : "00"=>1, "01"=>1, "10"=>2, "11"=>1.5
--- PARITY     : "0X"=>No parity,  "10"=>Even parity, "11"=>Odd parity
--- BAUD       : "000"=>1200, "001"=>2400, "010"=>4800, "011"=>9600
---              "100"=>19200, "101"=>38400,"110"=>57600, "111"=>115200
+
 
 ----------------------------------------------------------------------------
 library ieee;
@@ -52,19 +54,16 @@ architecture rtl of uart_tx is
 	signal nbits_left_next : unsigned(3 downto 0) := (others=>'0');
 	signal nbits_left_reg  : unsigned(3 downto 0) := (others=>'0');
 
-	signal baud_tick      : std_logic := '0'; --! Baud ticks at desired baud rate
+	signal baud_tick       : std_logic := '0'; --! Baud ticks at desired baud rate
 
-	signal tx_next        : std_logic := '0';
-	signal tx_reg         : std_logic := '0';
+	signal tx_next         : std_logic := '0';
+	signal tx_reg          : std_logic := '0';
 
-	signal start_next     : std_logic := '0';
-	signal start_reg      : std_logic := '0';
+	signal parity_next     : std_logic := '0';
+	signal parity_reg      : std_logic := '0';
 
-	signal parity_next    : std_logic := '0';
-	signal parity_reg     : std_logic := '0';
-
-	signal req            : std_logic := '0';
-	signal ack            : std_logic := '0';
+	signal req             : std_logic := '0';
+	signal ack             : std_logic := '0';
 
 	type fsm_states is(
 		ST_START,
@@ -94,7 +93,7 @@ begin
 				  to_unsigned(6, 4) when iWord_len = "10" else
 				  to_unsigned(7, 4) when iWord_len = "11";
 
-
+	--! Clock counter to generate baud ticks
 	BAUD_CNT_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
@@ -109,17 +108,6 @@ begin
 	-- Generate baud tick
 	baud_tick <= '1' when baud_cnt = baud_cnt_limit-1 else
 				 '0';
-
-	START_PROC: process(iClk)
-	begin
-		if rising_edge(iClk) then
-			if iRst = '1'then
-				start_reg <= '0';
-			else
-				start_reg <= start_next;
-			end if;
-		end if;
-	end process START_PROC;
 
 	--! Request input register process
 	REQ_REG_PROC: process(iClk)
@@ -167,11 +155,9 @@ begin
 		end if;
 	end process PARITY_REG_PROC;
 
-
-
 ----------------------------------------------------------------------------
 
-	--! FSM state register
+	--! FSM - state register
 	FSM_STATE_REG : process(iClk)
 	begin
 		if rising_edge(iClk) then
@@ -182,12 +168,27 @@ begin
 			end if;
 		end if;
 	end process FSM_STATE_REG;
+			
+--! @dot
+--! digraph FSM_UART_TX {
+--!  node [shape=circle];
+--!  START 	  -> TX_DATA  [label = "req"];
+--!  TX_DATA  -> PARITY   [label = "parity_en"]
+--!  TX_DATA  -> STOP     [label = "!parity_en"]
+--!  PARITY   -> STOP
+--!  PARITY   -> STOP_EXT [label = "stop_len"];
+--!  STOP     -> START    [label = "!stop_len"];
+--!  STOP     -> STOP_EXT [label = "stop_len"];
+--!  STOP_EXT -> START    [label = "!stop_len"];
+--! }
+--! @enddot
 
-	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req, start_reg, parity_reg)
+	--! FSM - Next state logic
+	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req, 
+					 parity_reg, iData, word_nbits, iParity, iStop_len)
 	begin
 		state_next 	    <= state_reg;
 		tx_next         <= tx_reg;
-		start_next      <= start_reg;
 		data_in_next    <= data_in_reg;
 		nbits_left_next <= nbits_left_reg;
 		ack             <= '0';
@@ -286,19 +287,7 @@ begin
 
 	oTx  <= tx_reg;
 	oAck <= ack;
-
-
+			
 --------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
 end architecture rtl;
 ----------------------------------------------------------------------------
-
