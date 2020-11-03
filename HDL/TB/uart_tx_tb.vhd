@@ -1,7 +1,9 @@
 --! @file 			uart_tx_tb.vhd
---! @brief 			a short description what can be found in the file
---! @details 		detailed description
---! @author 		Selman Ergünay
+--! @brief 			Testbench of uart_tx module
+--! @details 		This testbench reads the test vector file tv_in.txt
+--!                 which lists data and control signals in 8-bit binary
+--!                 format.
+--! @author 		Selman Ergunay
 --! @date 			20.10.2020
 ----------------------------------------------------------------------------
 library ieee;
@@ -24,10 +26,10 @@ architecture tb of uart_tx_tb is
 			iClk       : in std_logic;
 			iRst       : in std_logic;
 			iBaud      : in std_logic_vector(2 downto 0);
+			iWord_len  : in std_logic_vector(1 downto 0);
 			iParity_en : in std_logic;
 			iParity    : in std_logic;  --! 0: even, 1:odd
-			iWord_len  : in std_logic_vector(1 downto 0);
-			iStop_len  : in std_logic;
+			iEstop_en  : in std_logic;
 			iReq       : in std_logic;
 			iData      : in std_logic_vector(7 downto 0);
 			oAck       : out std_logic;
@@ -46,7 +48,7 @@ architecture tb of uart_tx_tb is
 	signal sim_parity    : std_logic := '0';
 	signal sim_parity_en : std_logic := '1';
 	signal sim_word_len  : std_logic_vector(1 downto 0) := "11";
-	signal sim_stop_len  : std_logic := '0';
+	signal sim_estop_en  : std_logic := '0';
 
 	signal sim_req       : std_logic := '0';
 	signal sim_data      : std_logic_vector(7 downto 0) := (others=>'0');
@@ -81,10 +83,10 @@ begin
 			iClk       => sim_clk,
 			iRst       => sim_rst,
 			iBaud      => sim_baud,
+			iWord_len  => sim_word_len,
 			iParity_en => sim_parity_en,
 			iParity    => sim_parity,
-			iWord_len  => sim_word_len,
-			iStop_len  => sim_stop_len,
+			iEstop_en  => sim_estop_en,
 			iReq       => sim_req,
 			iData      => sim_data,
 			oAck       => duv_ack,
@@ -121,13 +123,12 @@ begin
 			constant control : std_logic_vector(7 downto 0)) is
 		begin
 			sim_data(7 downto 0)     <= data(7 downto 0);
-
 			sim_baud(2 downto 0)     <= "011";
-			sim_parity_en            <= control(4);
-			sim_parity               <= control(3);
-			sim_word_len(1 downto 0) <= control(2 downto 1);
-			sim_stop_len             <= control(0);
-			sim_req   <= '1';
+			sim_word_len(1 downto 0) <= control(4 downto 3);
+			sim_parity_en            <= control(2);
+			sim_parity               <= control(1);
+			sim_estop_en             <= control(0);
+			sim_req                  <= '1';
 		end procedure load;
 
 		procedure check(
@@ -186,7 +187,7 @@ begin
 			sim_check <= '0';
 
 			-- check extra stop
-			if sim_stop_len = '1' then
+			if sim_estop_en = '1' then
 				wait for C_BAUD_PER - 5 ns;
 				sim_check <= '1';
 				assert duv_tx = '1'

@@ -5,11 +5,12 @@
 --!             an acknowledgement (oAck) signal is generated. The next data
 --!             then can be supplied after this ack signal.
 --!             Control bits:
---!             WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
---!             STOP_NBITS : "00"=>1, "01"=>1, "10"=>2, "11"=>1.5
---!             PARITY     : "0X"=>No parity,  "10"=>Even parity, "11"=>Odd parity
---!             BAUD       : "000"=>1200,  "001"=>2400, "010"=>4800,  "011"=>9600
+--!             [7:5] BAUD : "000"=>1200,  "001"=>2400, "010"=>4800,  "011"=>9600
 --!                          "100"=>19200, "101"=>38400,"110"=>57600, "111"=>115200
+--!             [4:3] WORD_LEN : "00"=>5, "01"=>6, "10"=>7, "11"=>8
+--!             [  2] PARITY_EN
+--!             [  1] PARITY   : "0"=>Even parity, "1"=>Odd parity
+--!             [  0] ESTOP_EN
 --! @author     Selman Ergunay
 --! @date       2020-10-20
 ----------------------------------------------------------------------------
@@ -23,10 +24,10 @@ entity uart_tx is
 		iRst       : in std_logic;  --! System reset
 		-- Control pins
 		iBaud      : in std_logic_vector(2 downto 0);
+		iWord_len  : in std_logic_vector(1 downto 0);
 		iParity_en : in std_logic;
 		iParity    : in std_logic;  --! 0: even, 1:odd
-		iWord_len  : in std_logic_vector(1 downto 0);
-		iStop_len  : in std_logic;
+		iEstop_en  : in std_logic;
 
 		iReq       : in std_logic;  --! Tx request
 		iData      : in std_logic_vector(7 downto 0);
@@ -42,12 +43,12 @@ architecture rtl of uart_tx is
 	signal baud_cnt        : unsigned(C_BAUD_CNT_NBITS-1 downto 0) := (others=>'0');
 	signal baud_en         : std_logic := '0';
 
-	signal word_nbits      : unsigned(3 downto 0) := (others=>'0');
+	signal word_nbits      : unsigned(2 downto 0) := (others=>'0');
 
 	signal data_in_next    : std_logic_vector(7 downto 0) := (others=>'0');
 	signal data_in_reg     : std_logic_vector(7 downto 0) := (others=>'0');
-	signal nbits_left_next : unsigned(3 downto 0) := (others=>'0');
-	signal nbits_left_reg  : unsigned(3 downto 0) := (others=>'0');
+	signal nbits_left_next : unsigned(2 downto 0) := (others=>'0');
+	signal nbits_left_reg  : unsigned(2 downto 0) := (others=>'0');
 
 	signal baud_tick       : std_logic := '0'; --! Baud ticks at desired baud rate
 
@@ -83,10 +84,10 @@ begin
 					  to_unsigned(  104, C_BAUD_CNT_NBITS) when iBaud = "111";
 
 	-- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
-	word_nbits <= to_unsigned(4, 4) when iWord_len = "00" else
-			      to_unsigned(5, 4) when iWord_len = "01" else
-				  to_unsigned(6, 4) when iWord_len = "10" else
-				  to_unsigned(7, 4) when iWord_len = "11";
+	word_nbits <= to_unsigned(4, 3) when iWord_len = "00" else
+			      to_unsigned(5, 3) when iWord_len = "01" else
+				  to_unsigned(6, 3) when iWord_len = "10" else
+				  to_unsigned(7, 3) when iWord_len = "11";
 
 	--! Clock counter to generate baud ticks
 	BAUD_CNT_PROC: process(iClk)
@@ -180,7 +181,7 @@ begin
 
 	--! FSM - Next state logic
 	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req,
-					 parity_reg, iData, word_nbits, iParity, iStop_len)
+					 parity_reg, iData, word_nbits, iParity, iEstop_en)
 	begin
 		state_next 	    <= state_reg;
 		tx_next         <= tx_reg;
@@ -247,7 +248,7 @@ begin
 				tx_next         <= '1';
 
 				if baud_tick = '1' then
-					if iStop_len = '0' then
+					if iEstop_en = '0' then
 				  		state_next <= ST_START;
 					else
 				  		state_next <= ST_STOP_EXT;
