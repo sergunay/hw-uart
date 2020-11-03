@@ -81,13 +81,13 @@ begin
 					  to_unsigned(  625, C_BAUD_CNT_NBITS) when iBaud = "100" else
 					  to_unsigned(  312, C_BAUD_CNT_NBITS) when iBaud = "101" else
 					  to_unsigned(  208, C_BAUD_CNT_NBITS) when iBaud = "110" else
-					  to_unsigned(  104, C_BAUD_CNT_NBITS) when iBaud = "111";
+					  to_unsigned(  104, C_BAUD_CNT_NBITS);           --"111"
 
 	-- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
 	word_nbits <= to_unsigned(4, 3) when iWord_len = "00" else
 			      to_unsigned(5, 3) when iWord_len = "01" else
 				  to_unsigned(6, 3) when iWord_len = "10" else
-				  to_unsigned(7, 3) when iWord_len = "11";
+				  to_unsigned(7, 3);               --"11";
 
 	--! Clock counter to generate baud ticks
 	BAUD_CNT_PROC: process(iClk)
