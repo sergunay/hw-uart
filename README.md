@@ -5,14 +5,11 @@ Date          : 2020-10-20
 General Description
 --------------------------------------------------------------------------
 
-* Supports 5, 6, 7, 8 bit data packages.
-* Parity
-* 1, 1.5, 2 stop bits
-* 9600, 115200 baud rate
+* Data width: 5, 6, 7, 8 bit
+* Parity: none, even, odd
+* Stop bits: 1, 2
+* Baud rate: 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200
 * Verification hardware: CMOD-A7
-
-Version control
---------------------------------------------------------------------------
 
 Directory structure
 --------------------------------------------------------------------------
@@ -25,10 +22,8 @@ HDL
 	BHV	: Behavioral codes.
 	TB	: Testbenches.
 
-LA
-	Logic analyzer waveform and screenshots
-
 PYTHON
+	tvgen_uart.py : Python script generates random test vectors.
 
 VIVADO
 	BIN    : Binary files
@@ -41,11 +36,20 @@ VIVADO
 Hardware
 --------------------------------------------------------------------------
 
+* CMOD-A7 is used for verification. 
+  - FPGA: Xilinx Artix-7 (XC7A35T-1CPG236C)
+  - 12 MHz clock
+   
 Connections
 --------------------------------------------------------------------------
 
 Simulation
 --------------------------------------------------------------------------
+
+GHDL:
+
+	Go to GHDL directory
+	make
 
 Synthesis
 --------------------------------------------------------------------------
@@ -77,11 +81,15 @@ Run flash.tcl to program the configuration flash memory:
 Verification
 --------------------------------------------------------------------------
 
-Notes
+
+
+TODO
 --------------------------------------------------------------------------
 
-Revision history
---------------------------------------------------------------------------
+* [ ] UART TX
+* [ ] UART TX interface w/FIFO
+* [ ] UART RX
+* [ ] UART RX interface w/FIFO 
 
 --------------------------------------------------------------------------
 END OF README
