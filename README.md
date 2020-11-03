@@ -14,24 +14,27 @@ General Description
 Directory structure
 --------------------------------------------------------------------------
 
-DOC
-	DOX_HDL : Auto-generated Doxygen documentation
+* DOC
+  - DOX_HDL : Auto-generated Doxygen documentation
 
-HDL
-	RTL	: Synthesized RTL codes.
-	BHV	: Behavioral codes.
-	TB	: Testbenches.
+* GHDL
+  - Makefile for GHDL simulation
 
-PYTHON
-	tvgen_uart.py : Python script generates random test vectors.
+* HDL
+  - RTL	: Synthesized RTL codes.
+  - BHV	: Behavioral codes.
+  - TB	: Testbenches.
 
-VIVADO
-	BIN    : Binary files
-	CONSTR : Constraint files
-	IMPL   : Implementation files
-	SYNTH  : Synthesis files
-	TCL    : Vivado scripts
-	WORK   : Working directory for TCL based operations
+* PYTHON
+  - tvgen_uart.py : Python script generates random test vectors.
+
+* VIVADO
+  - BIN    : Binary files
+  - CONSTR : Constraint files
+  - IMPL   : Implementation files
+  - SYNTH  : Synthesis files
+  - TCL    : Vivado scripts
+  - WORK   : Working directory for TCL based operations
 
 Hardware
 --------------------------------------------------------------------------

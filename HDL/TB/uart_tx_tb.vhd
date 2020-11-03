@@ -94,14 +94,6 @@ begin
 
 	CLK_STIM : sim_clk 	<= not sim_clk after C_CLK_PER/2 when not sim_stop;
 
-	INFO_PROC: process
-        variable l : line;
- 	begin
-		write (l, string'("Simulation started."));
-        writeline (output, l);
-        wait;
-	end process;
-
 	STIM_PROC: process
 
 		variable tv_line	: line;
@@ -109,7 +101,8 @@ begin
 		variable tv_control : std_logic_vector(7 downto 0) := (others=>'0');
 		variable parity     : std_logic := '0';
 		variable wordlen    : natural := 8;
-        variable l : line;
+        variable l          : line;
+		variable tv_num     : positive := 1;
 
 		procedure init is
 		begin
@@ -122,6 +115,7 @@ begin
 			constant data    : std_logic_vector(7 downto 0);
 			constant control : std_logic_vector(7 downto 0)) is
 		begin
+			report "Loading test vector #" & integer'image(tv_num);
 			sim_data(7 downto 0)     <= data(7 downto 0);
 			sim_baud(2 downto 0)     <= "011";
 			sim_word_len(1 downto 0) <= control(4 downto 3);
@@ -129,12 +123,14 @@ begin
 			sim_parity               <= control(1);
 			sim_estop_en             <= control(0);
 			sim_req                  <= '1';
+			tv_num                   := tv_num + 1;
 		end procedure load;
 
 		procedure check(
 			constant data    : std_logic_vector(7 downto 0);
 			constant control : std_logic_vector(7 downto 0)) is
 		begin
+			report "Checking DUV output";
 			sim_check <= '0';
 			wait for C_BAUD_PER/2;
 
@@ -215,4 +211,3 @@ begin
 ----------------------------------------------------------------------------
 end architecture tb;
 ----------------------------------------------------------------------------
-

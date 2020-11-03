@@ -169,13 +169,13 @@ begin
 --! digraph FSM_UART_TX {
 --!  node [shape=circle];
 --!  START 	  -> TX_DATA  [label = "req"];
+--!  TX_DATA  -> TX_DATA  [label = "data_left"];
 --!  TX_DATA  -> PARITY   [label = "parity_en"]
 --!  TX_DATA  -> STOP     [label = "!parity_en"]
 --!  PARITY   -> STOP
---!  PARITY   -> STOP_EXT [label = "stop_len"];
---!  STOP     -> START    [label = "!stop_len"];
---!  STOP     -> STOP_EXT [label = "stop_len"];
---!  STOP_EXT -> START    [label = "!stop_len"];
+--!  STOP     -> START    [label = "!estop_en"];
+--!  STOP     -> ESTOP    [label = "estop_en"];
+--!  ESTOP    -> START
 --! }
 --! @enddot
 
