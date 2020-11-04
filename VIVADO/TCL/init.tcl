@@ -1,5 +1,5 @@
 # User variables
-set TOP_MODULE uart_tx
+set TOP_MODULE push_msg
 set FPGA_PART xc7a35tcpg236-1
 set CFGMEM_PART n25q32-3.3v-spi-x1_x2_x4
 # set VIVADO_PATH C:/Xilinx/Vivado/2018.3

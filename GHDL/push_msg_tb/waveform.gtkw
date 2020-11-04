@@ -1,0 +1,38 @@
+[*]
+[*] GTKWave Analyzer v3.3.103 (w)1999-2019 BSI
+[*] Wed Nov  4 20:38:16 2020
+[*]
+[dumpfile] "/home/serg/ws/eda/uart/GHDL/push_msg_tb/sim/push_msg_tb.ghw"
+[dumpfile_mtime] "Wed Nov  4 20:37:50 2020"
+[dumpfile_size] 606025
+[savefile] "/home/serg/ws/eda/uart/GHDL/push_msg_tb/waveform.gtkw"
+[timestart] 0
+[size] 1000 600
+[pos] -1 -1
+*-40.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.push_msg_tb.
+[treeopen] top.push_msg_tb.duv.
+[sst_width] 233
+[signals_width] 134
+[sst_expanded] 1
+[sst_vpaned_height] 144
+@28
+top.push_msg_tb.sim_clk
+top.push_msg_tb.sim_rst
+@200
+-
+@22
+#{top.push_msg_tb.duv.msg_char[7:0]} top.push_msg_tb.duv.msg_char[7] top.push_msg_tb.duv.msg_char[6] top.push_msg_tb.duv.msg_char[5] top.push_msg_tb.duv.msg_char[4] top.push_msg_tb.duv.msg_char[3] top.push_msg_tb.duv.msg_char[2] top.push_msg_tb.duv.msg_char[1] top.push_msg_tb.duv.msg_char[0]
+#{top.push_msg_tb.duv.cmd_cnt[3:0]} top.push_msg_tb.duv.cmd_cnt[3] top.push_msg_tb.duv.cmd_cnt[2] top.push_msg_tb.duv.cmd_cnt[1] top.push_msg_tb.duv.cmd_cnt[0]
+@28
+top.push_msg_tb.duv.i_uart_tx.baud_tick
+@420
+top.push_msg_tb.duv.i_uart_tx.state_reg
+@28
+top.push_msg_tb.duv.ack
+top.push_msg_tb.duv.req
+@29
+top.push_msg_tb.duv_tx
+[pattern_trace] 1
+[pattern_trace] 0

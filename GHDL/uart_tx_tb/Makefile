@@ -1,5 +1,5 @@
 # vhdl files
-FILES = ../HDL/RTL/*.vhd
+FILES = ../../HDL/RTL/*.vhd
 VHDLEX = .vhd
 
 # testbench
