@@ -1,15 +1,21 @@
-Project name  : UART
-Release       : 0.0
+Project name  : UART  
+Release       : 0.0  
 Date          : 2020-10-20
 
 General Description
 --------------------------------------------------------------------------
 
+A simple and small UART hardware written in VHDL.  
+Features:
 * Data width: 5, 6, 7, 8 bit
 * Parity: none, even, odd
 * Stop bits: 1, 2
 * Baud rate: 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200
 * Verification hardware: CMOD-A7
+
+Transmitter is implemented and tested with a simple application which
+prints "Hello World!" with reset.
+Receiver part and more applications with FIFO are future work.
 
 Directory structure
 --------------------------------------------------------------------------
@@ -26,7 +32,7 @@ Directory structure
   - TB	: Testbenches.
 
 * PYTHON
-  - tvgen_uart.py : Python script generates random test vectors.
+  - Python scripts
 
 * VIVADO
   - BIN    : Binary files
@@ -39,14 +45,14 @@ Directory structure
 Hardware
 --------------------------------------------------------------------------
 
-* CMOD-A7 is used for verification. 
-  - FPGA: Xilinx Artix-7 (XC7A35T-1CPG236C)
-  - 12 MHz clock
+CMOD-A7 is used for verification. 
+* FPGA: Xilinx Artix-7 (XC7A35T-1CPG236C)
+* 12 MHz clock
    
 Python scripts
 --------------------------------------------------------------------------
 
-* Use PYTHON/tvgen/tvgen_uart.py to generate test vectors.
+* Use PYTHON/tvgen/tvgen_uart.py to generate random test vectors.
 * Use PYTHON/str2vec/str2vec.py to convert a text message to std_logic_vector array.
 
 Simulation
@@ -68,8 +74,7 @@ Synthesis
 
 Vivado in TCL mode:
 
-	Go to VIVADO/WORK directory.
-	cmd
+	cd VIVADO/WORK
 	vivado -mode tcl
 	source ../TCL/build.tcl
 
