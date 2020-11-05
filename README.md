@@ -43,15 +43,24 @@ Hardware
   - FPGA: Xilinx Artix-7 (XC7A35T-1CPG236C)
   - 12 MHz clock
    
-Connections
+Python scripts
 --------------------------------------------------------------------------
+
+* Use PYTHON/tvgen/tvgen_uart.py to generate test vectors.
+* Use PYTHON/str2vec/str2vec.py to convert a text message to std_logic_vector array.
 
 Simulation
 --------------------------------------------------------------------------
 
-GHDL:
+Unit test of uart_tx with GHDL:
 
-	Go to GHDL directory
+	cp PYTHON/tvgen/tv.txt GHDL/uart_tx_tb/IN/tv_in.txt
+	cd GHDL/uart_tx_tb
+	make
+
+Test of push_msg with GHDL:
+
+	Go to GHDL/push_msg_tb directory
 	make
 
 Synthesis
@@ -66,8 +75,8 @@ Vivado in TCL mode:
 
 Implementation results:
 
-  - Area  :
-  - Speed :
+  - Area        : 26 LUT + 32 Flip-Flop
+  - Slack (MET) : 79.670ns  (required time - arrival time)
 
 Programming the FPGA
 --------------------------------------------------------------------------
@@ -84,12 +93,16 @@ Run flash.tcl to program the configuration flash memory:
 Verification
 --------------------------------------------------------------------------
 
+After programming the FPGA, keep USB cable connected. Listen serial port:
 
+	screen /dev/ttyUSB1 9600
+
+Press reset button to see "Hello World!" text.
 
 TODO
 --------------------------------------------------------------------------
 
-* [ ] UART TX
+* [x] UART TX
 * [ ] UART TX interface w/FIFO
 * [ ] UART RX
 * [ ] UART RX interface w/FIFO 
