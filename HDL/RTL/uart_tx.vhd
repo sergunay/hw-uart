@@ -9,7 +9,7 @@
 --!                          "100"=>19200, "101"=>38400,"110"=>57600, "111"=>115200
 --!             [4:3] WORD_LEN : "00"=>5, "01"=>6, "10"=>7, "11"=>8
 --!             [  2] PARITY_EN
---!             [  1] PARITY   : "0"=>Even parity, "1"=>Odd parity
+--!             [  1] PARITY   : "0"=>Even parity_reg, "1"=>Odd parity
 --!             [  0] ESTOP_EN
 --! @author     Selman Ergunay
 --! @date       2020-10-20
@@ -27,7 +27,7 @@ entity uart_tx is
 		iWord_len  : in std_logic_vector(1 downto 0);
 		iParity_en : in std_logic;
 		iParity    : in std_logic;  --! 0: even, 1:odd
-		iEstop_en  : in std_logic;
+		iEstop_en  : in std_logic;  --! 0: 1xStop, 1: 2xStop
 
 		iReq       : in std_logic;  --! Tx request
 		iData      : in std_logic_vector(7 downto 0);
@@ -37,26 +37,40 @@ end entity uart_tx;
 ----------------------------------------------------------------------------
 architecture rtl of uart_tx is
 
+	-- Control signals:
+
 	constant C_BAUD_CNT_NBITS : integer := 12;
 
+	-- Baud counter
 	signal baud_cnt_limit  : unsigned(C_BAUD_CNT_NBITS-1 downto 0) := (others=>'0');
 	signal baud_cnt        : unsigned(C_BAUD_CNT_NBITS-1 downto 0) := (others=>'0');
 	signal baud_en         : std_logic := '0';
-
-	signal word_nbits      : unsigned(2 downto 0) := (others=>'0');
-
-	signal data_in_next    : std_logic_vector(7 downto 0) := (others=>'0');
-	signal data_in_reg     : std_logic_vector(7 downto 0) := (others=>'0');
-	signal nbits_left_next : unsigned(2 downto 0) := (others=>'0');
-	signal nbits_left_reg  : unsigned(2 downto 0) := (others=>'0');
-
 	signal baud_tick       : std_logic := '0'; --! Baud ticks at desired baud rate
 
-	signal tx_next         : std_logic := '0';
-	signal tx_reg          : std_logic := '0';
+	signal data_in_reg     : std_logic_vector(7 downto 0) := (others=>'0');
 
-	signal parity_next     : std_logic := '0';
+	-- Shift register with parallel load
+	signal data_reg        : std_logic_vector(7 downto 0) := (others=>'0');
+	signal data_load       : std_logic := '0';
+	signal data_shift      : std_logic := '0';
+
+	-- Data bit down counter
+	signal dbit_cnt_reg    : unsigned(2 downto 0) := (others=>'0');
+	signal dbit_cnt_dec    : std_logic := '0';
+	signal dbit_cnt_of     : std_logic := '0';
+	signal data_tx         : std_logic := '0'; -- data_reg(0)
+	signal word_nbits      : unsigned(2 downto 0) := (others=>'0');
+
+	-- Request flag
+	signal req_clr         : std_logic := '0';
+	signal req_set         : std_logic := '0';
+	signal req_flag_reg    : std_logic := '0';
+
+	-- Parity XORREG
 	signal parity_reg      : std_logic := '0';
+	signal parity_xor_en   : std_logic := '0';
+
+	signal tx_reg          : std_logic := '0';
 
 	signal req             : std_logic := '0';
 	signal ack             : std_logic := '0';
@@ -68,8 +82,8 @@ architecture rtl of uart_tx is
 		ST_STOP,
 	   	ST_STOP_EXT);
 
-	signal state_next, state_reg 	: fsm_states := ST_START;
-
+	signal state_next, state_reg : fsm_states := ST_START;
+----------------------------------------------------------------------------
 begin
 
 	-- BAUD       : "000"=>1200, "001"=>2400, "010"=>4800, "011"=>9600
@@ -82,12 +96,6 @@ begin
 					  to_unsigned(  312, C_BAUD_CNT_NBITS) when iBaud = "101" else
 					  to_unsigned(  208, C_BAUD_CNT_NBITS) when iBaud = "110" else
 					  to_unsigned(  104, C_BAUD_CNT_NBITS);           --"111"
-
-	-- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
-	word_nbits <= to_unsigned(4, 3) when iWord_len = "00" else
-			      to_unsigned(5, 3) when iWord_len = "01" else
-				  to_unsigned(6, 3) when iWord_len = "10" else
-				  to_unsigned(7, 3);               --"11";
 
 	--! Clock counter to generate baud ticks
 	BAUD_CNT_PROC: process(iClk)
@@ -118,38 +126,108 @@ begin
 	end process REQ_REG_PROC;
 
 
+----------------------------------------------------------------------------
+
+-- Datapath
+
+	-- INREG
 	DATA_IN_REG_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
 			if iRst = '1'then
 				data_in_reg <= (others=>'0');
 			else
-				data_in_reg <= data_in_next;
+				data_in_reg <= iData;
 			end if;
 		end if;
 	end process DATA_IN_REG_PROC;
 
-	NBITS_LEFT_PROC: process(iClk)
+	-- SRwPL
+	DATA_SHIFT_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
 			if iRst = '1'then
-				nbits_left_reg <= word_nbits;
-			else
-				nbits_left_reg <= nbits_left_next;
+				data_reg <= (others=>'0');
+			elsif data_load = '1' then
+				data_reg <= data_in_reg;
+			elsif data_shift = '1' then
+				data_reg <= '0' & data_reg(7 downto 1);
 			end if;
 		end if;
-	end process NBITS_LEFT_PROC;
+	end process DATA_SHIFT_PROC;
 
-	PARITY_REG_PROC: process(iClk)
+	data_tx <= data_reg(0);
+
+	-- XORREG
+	PARITY_PROC: process(iClk)
 	begin
 		if rising_edge(iClk) then
 			if iRst = '1'then
 				parity_reg <= '0';
-			else
-				parity_reg <= parity_next;
+			elsif data_load = '1' then
+				parity_reg <= iParity;
+			elsif parity_xor_en = '1' then
+				parity_reg <= parity_reg xor data_tx;
 			end if;
 		end if;
-	end process PARITY_REG_PROC;
+	end process PARITY_PROC;
+
+	-- MUXREG
+	OUTSEL_PROC: process(iClk)
+	begin
+		if rising_edge(iClk) then
+			if iRst = '1'then
+				tx_reg <= '1';
+			elsif state_reg = ST_START and req = '1' then
+				tx_reg <= '0';
+			elsif state_reg = ST_TX_DATA then
+				tx_reg <= data_tx;
+			elsif state_reg = ST_PARITY then
+				tx_reg <= parity_reg;
+			else
+				tx_reg <= '1';
+			end if;
+		end if;
+	end process OUTSEL_PROC;
+
+	oTx  <= tx_reg;
+
+----------------------------------------------------------------------------
+
+	-- Control
+
+	-- WORD_NBITS : "00"=>5, "01"=>6, "10"=>7, "11"=>8
+	word_nbits <= to_unsigned(4, 3) when iWord_len = "00" else
+			      to_unsigned(5, 3) when iWord_len = "01" else
+				  to_unsigned(6, 3) when iWord_len = "10" else
+				  to_unsigned(7, 3);               --"11";
+
+	-- CNTDN
+	DBIT_CNTDN_PROC: process(iClk)
+	begin
+		if rising_edge(iClk) then
+			if iRst = '1' or state_reg = ST_START then
+				dbit_cnt_reg <= word_nbits;
+			elsif dbit_cnt_dec = '1' then
+				dbit_cnt_reg <= dbit_cnt_reg - 1;
+			end if;
+		end if;
+	end process DBIT_CNTDN_PROC;
+
+	dbit_cnt_of <= '1' when dbit_cnt_reg = 0 else
+				   '0';
+
+	-- FLAG
+	REQ_FLAG_PROC: process(iClk)
+	begin
+		if rising_edge(iClk) then
+			if iRst = '1' or ack = '1' then
+				req_flag_reg <= '0';
+			elsif req = '1' then
+				req_flag_reg <= '1';
+			end if;
+		end if;
+	end process REQ_FLAG_PROC;
 
 ----------------------------------------------------------------------------
 
@@ -170,8 +248,8 @@ begin
 --!  node [shape=circle];
 --!  START 	  -> TX_DATA  [label = "req"];
 --!  TX_DATA  -> TX_DATA  [label = "data_left"];
---!  TX_DATA  -> PARITY   [label = "parity_en"]
---!  TX_DATA  -> STOP     [label = "!parity_en"]
+--!  TX_DATA  -> PARITY   [label = "parity_reg_en"]
+--!  TX_DATA  -> STOP     [label = "!parity_reg_en"]
 --!  PARITY   -> STOP
 --!  STOP     -> START    [label = "!estop_en"];
 --!  STOP     -> ESTOP    [label = "estop_en"];
@@ -180,32 +258,28 @@ begin
 --! @enddot
 
 	--! FSM - Next state logic
-	FSM_NSL: process(state_reg, baud_tick, data_in_reg, nbits_left_reg, req,
-					 parity_reg, iData, word_nbits, iParity, iEstop_en)
+	FSM_NSL: process(state_reg, baud_tick, req_flag_reg, iParity_en, iEstop_en, dbit_cnt_of)
 	begin
 		state_next 	    <= state_reg;
-		tx_next         <= tx_reg;
-		data_in_next    <= data_in_reg;
-		nbits_left_next <= nbits_left_reg;
 		ack             <= '0';
-		parity_next     <= parity_reg;
 		baud_en         <= '1';
+		data_load       <= '0';
+		data_shift      <= '0';
+		parity_xor_en   <= '0';
+		dbit_cnt_dec    <= '0';
 
 		case state_reg is
 
 			when ST_START		=>
 
-				if req = '1' then
-					nbits_left_next <= word_nbits;
-					tx_next         <= '0';
-					data_in_next    <= iData;
-					parity_next     <= iParity;
+				if req_flag_reg = '1' then
 				else
 					baud_en         <= '0';
 				end if;
 
 				if baud_tick = '1' then
 					state_next 	 <= ST_TX_DATA;
+					data_load    <= '1';
 					ack          <= '1';
 				end if;
 
@@ -213,18 +287,14 @@ begin
 
 			when ST_TX_DATA	=>
 
-				tx_next         <= data_in_reg(0);
-
 				if baud_tick = '1' then
 
-					parity_next     <= parity_reg xor data_in_reg(0);
+					data_shift      <= '1';
+					parity_xor_en   <= iParity_en;
+					dbit_cnt_dec    <= '1';
 
-					data_in_next    <= '0' & data_in_reg(7 downto 1);
-					nbits_left_next <= nbits_left_reg - 1;
+					if dbit_cnt_of = '1' then
 
-					if nbits_left_reg = 0 then
-
-						nbits_left_next <= word_nbits;
 						if iParity_en = '1' then
 							state_next	<= ST_PARITY;
 						else
@@ -236,16 +306,12 @@ begin
 			---------------------------------------------------
 			when ST_PARITY =>
 
-				tx_next     <= parity_reg;
-
 				if baud_tick = '1' then
 					state_next 	<= ST_STOP;
 				end if;
 
 			---------------------------------------------------
 			when ST_STOP  =>
-
-				tx_next         <= '1';
 
 				if baud_tick = '1' then
 					if iEstop_en = '0' then
@@ -258,8 +324,6 @@ begin
 			---------------------------------------------------
 			when ST_STOP_EXT  =>
 
-				tx_next         <= '1';
-
 				if baud_tick = '1' then
 					state_next 	<= ST_START;
 				end if;
@@ -268,20 +332,6 @@ begin
 
 	end process FSM_NSL;
 
---------------------------------------------------------------------------------
-
-	TX_REG_PROC: process(iClk)
-	begin
-		if rising_edge(iClk) then
-			if iRst = '1'then
-				tx_reg <= '1';
-			else
-				tx_reg <= tx_next;
-			end if;
-		end if;
-	end process TX_REG_PROC;
-
-	oTx  <= tx_reg;
 	oAck <= ack;
 
 --------------------------------------------------------------------------------
